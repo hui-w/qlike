@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Cycle Calendar</title>
+    <style>
+      html,
+      body {
+        touch-action: manipulation;
+        -ms-touch-action: manipulation;
+        margin: 0;
+        padding: 20px;
+        padding-bottom: 80px;
+        font-family: Arial, sans-serif;
+        background-color: #f4faff;
+        color: #004080;
+      }
+      h2 {
+        text-align: center;
+        margin-top: 20px;
+        color: #004080;
+      }
+      .calendar {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 6px;
+        margin-bottom: 20px;
+        padding: 10px;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      }
+      .day {
+        padding: 10px;
+        text-align: center;
+        border: 1px solid #eee;
+        border-radius: 6px;
+        background-color: white;
+        color: #004080;
+        font-weight: normal;
+        font-size: 14px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .cycle-day {
+        background-color: #e0f0ff;
+        color: #004080;
+        font-weight: bold;
+      }
+      .rest-day {
+        background-color: #fff;
+        color: #004080;
+        font-weight: bold;
+      }
+      .empty {
+        background: none;
+        border: none;
+      }
+      .weekday-header {
+        font-weight: bold;
+        background: #e6f0ff;
+        white-space: nowrap;
+        padding: 8px 4px;
+        font-size: 12px;
+        color: #004080;
+      }
+      .weekend {
+        color: #cc0000 !important;
+      }
+      .nav-buttons {
+        position: fixed;
+        bottom: 32px;
+        left: 0;
+        width: 100%;
+        background: #f4faff;
+        padding: 10px 0;
+        display: flex;
+        justify-content: center;
+        box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+        z-index: 10;
+      }
+      button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        margin: 0 10px;
+        border-radius: 6px;
+        font-size: 16px;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      @media (max-width: 600px) {
+        .calendar {
+          font-size: 12px;
+          gap: 4px;
+          padding: 6px;
+        }
+        .day {
+          padding: 6px;
+        }
+        button {
+          padding: 6px 12px;
+          font-size: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="calendar-container"></div>
+    <div class="nav-buttons">
+      <button id="prevMonth">Previous</button>
+      <button id="nextMonth">Next</button>
+    </div>
+    <script>
+      const cycleDays = 21;
+      const restDays = 7;
+      const totalCycle = cycleDays + restDays;
+      const startDateUTC = Date.UTC(2025, 4, 21);
+
+      const monthNames = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+      const weekdayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+      let currentDate = new Date();
+      let currentYear = currentDate.getFullYear();
+      let currentMonth = currentDate.getMonth();
+
+      function getCycleStatus(date) {
+        const oneDay = 1000 * 60 * 60 * 24;
+        const dateUTC = Date.UTC(
+          date.getFullYear(),
+          date.getMonth(),
+          date.getDate()
+        );
+        const diffDays = Math.floor((dateUTC - startDateUTC) / oneDay);
+        if (diffDays < 0) return "before";
+        const cyclePosition = diffDays % totalCycle;
+        return cyclePosition < cycleDays ? "cycle" : "rest";
+      }
+
+      function generateCalendar(year, month) {
+        const container = document.createElement("div");
+        const title = document.createElement("h2");
+        title.textContent = `${monthNames[month]} ${year}`;
+        container.appendChild(title);
+
+        const calendar = document.createElement("div");
+        calendar.className = "calendar";
+
+        for (let i = 0; i < 7; i++) {
+          const cell = document.createElement("div");
+          cell.className = "day weekday-header";
+          if (i === 0 || i === 6) {
+            cell.classList.add("weekend");
+          }
+          cell.textContent = weekdayNames[i];
+          calendar.appendChild(cell);
+        }
+
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const startWeekDay = firstDay.getDay();
+
+        for (let i = 0; i < startWeekDay; i++) {
+          const cell = document.createElement("div");
+          cell.className = "day empty";
+          calendar.appendChild(cell);
+        }
+
+        for (let day = 1; day <= lastDay.getDate(); day++) {
+          const d = new Date(year, month, day);
+          const cell = document.createElement("div");
+          cell.className = "day";
+
+          const status = getCycleStatus(d);
+          if (status === "cycle") {
+            cell.classList.add("cycle-day");
+          } else if (status === "rest") {
+            cell.classList.add("rest-day");
+          }
+
+          const weekDay = d.getDay();
+          if (weekDay === 0 || weekDay === 6) {
+            cell.classList.add("weekend"); // 周末日期红字
+          }
+
+          cell.textContent = day;
+          calendar.appendChild(cell);
+        }
+
+        container.appendChild(calendar);
+        return container;
+      }
+
+      function renderCalendar() {
+        const container = document.getElementById("calendar-container");
+        container.innerHTML = "";
+        container.appendChild(generateCalendar(currentYear, currentMonth));
+      }
+
+      document.getElementById("prevMonth").addEventListener("click", () => {
+        currentMonth--;
+        if (currentMonth < 0) {
+          currentMonth = 11;
+          currentYear--;
+        }
+        renderCalendar();
+      });
+
+      document.getElementById("nextMonth").addEventListener("click", () => {
+        currentMonth++;
+        if (currentMonth > 11) {
+          currentMonth = 0;
+          currentYear++;
+        }
+        renderCalendar();
+      });
+
+      renderCalendar();
+    </script>
+  </body>
+</html>

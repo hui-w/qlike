@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
+    <meta
+      http-equiv="Cache-Control"
+      content="no-cache, no-store, must-revalidate"
+    />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>Event Calendar</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+        color: #222;
+        -webkit-text-size-adjust: 100%;
+        box-sizing: border-box;
+        width: 100%;
+        overflow-x: hidden;
+      }
+
+      .fixed-width {
+        width: 95%;
+        max-width: 800px;
+        margin: 0 auto;
+        box-sizing: border-box;
+      }
+
+      .header {
+        display: flex;
+        justify-content: center;
+        padding: 20px 0 0 0;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+      }
+
+      .tab-btn {
+        padding: 8px 16px;
+        cursor: pointer;
+        border: none;
+        background: #f8f9fa;
+        font-size: 14px;
+        border-top-left-radius: 4px;
+        border-top-right-radius: 4px;
+        margin-right: 4px;
+        white-space: nowrap;
+      }
+
+      .tab-btn.active {
+        background: white;
+        border: 1px solid #ddd;
+        border-bottom: 1px solid white;
+      }
+
+      .tab-content {
+        display: none;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      .body {
+        display: flex;
+        justify-content: center;
+        padding: 20px 0;
+        flex-direction: column;
+      }
+
+      .footer {
+        display: flex;
+        justify-content: center;
+        border-top: 1px solid #ddd;
+        padding: 6px 0;
+      }
+
+      .footer h1 {
+        font-size: 18px;
+        text-align: right;
+        padding: 4px 0;
+      }
+
+      .controls {
+        margin: 15px 0;
+      }
+
+      .hint {
+        font-size: 12px;
+        color: #666;
+        margin: 0 0 8px;
+      }
+
+      label {
+        margin-right: 12px;
+        font-size: 14px;
+      }
+
+      input[type="number"],
+      input[type="text"],
+      input[type="date"] {
+        padding: 8px 10px;
+        font-size: 16px;
+        border: 1px solid #bbb;
+        border-radius: 4px;
+        box-sizing: border-box;
+      }
+
+      input[type="number"] {
+        width: 50px;
+      }
+
+      input[type="text"] {
+        width: 100%;
+      }
+
+      input[type="date"] {
+        width: 100%;
+      }
+
+      button {
+        font-size: 15px;
+        padding: 8px 14px;
+        margin: 0;
+        border: 1px solid #bbb;
+        border-radius: 4px;
+        background: transparent;
+        color: #555;
+        cursor: pointer;
+        transition: background 0.15s ease;
+      }
+
+      button:hover {
+        background: #f0f0f0;
+      }
+
+      button.cancel {
+        background: #868e96;
+        border-color: #606770;
+        color: white;
+      }
+
+      #calendars {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .month {
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 8px 6px;
+        font-size: 14px;
+      }
+
+      .month-title {
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 6px;
+      }
+
+      .weekdays,
+      .days {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        text-align: center;
+      }
+
+      .weekdays div {
+        font-weight: bold;
+        color: #666;
+        padding-bottom: 3px;
+      }
+
+      .day {
+        padding: 5px 0;
+        margin: 1px;
+        border-radius: 3px;
+        user-select: none;
+      }
+
+      .day.weekend {
+        /*background: #f0f8ff;
+        color: #555;*/
+      }
+
+      .day.past-event {
+        background: #e0e0e0;
+        color: #888;
+        font-weight: normal;
+      }
+
+      .day.event {
+        background: #74c0fc;
+        color: #1c7ed6;
+        font-weight: bold;
+      }
+
+      .day.today {
+        border: 1px solid #ff6b6b;
+        background: #ffe3e3;
+        font-weight: bold;
+      }
+
+      ul {
+        list-style: none;
+        padding-left: 0;
+        margin: 10px 0;
+      }
+
+      li {
+        margin-bottom: 6px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      li span {
+        flex-grow: 1;
+        cursor: pointer;
+        transition: color 0.2s ease;
+      }
+
+      li span:hover {
+        color: #1c7ed6;
+        text-decoration: underline;
+      }
+
+      .event-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #fcfcfc;
+        padding: 4px 6px;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        flex-wrap: nowrap;
+      }
+
+      @media (max-width: 480px) {
+        .event-row {
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+
+        .event-info {
+          flex-basis: 100%;
+        }
+      }
+
+      .event-row input[type="text"] {
+        flex: 1 1 auto;
+        min-width: 120px;
+      }
+
+      .event-row input[type="date"] {
+        flex: 1 1 auto;
+        width: 160px;
+        min-width: 160px;
+      }
+
+      .event-interval {
+        font-size: 12px;
+        color: #666;
+      }
+
+      .event-date {
+        font-size: 12px;
+        color: #666;
+      }
+
+      #tooltip {
+        position: absolute;
+        background: #333;
+        color: white;
+        padding: 6px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.15s;
+        z-index: 1000;
+        white-space: pre-line;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Tabs header: user can switch between Event List and Calendar View -->
+    <div class="header">
+      <div class="tabs fixed-width" role="tablist" aria-label="View Tabs">
+        <button
+          class="tab-btn active"
+          data-tab="eventTab"
+          role="tab"
+          aria-selected="true"
+        >
+          Event List
+        </button>
+        <button
+          class="tab-btn"
+          data-tab="calendarTab"
+          role="tab"
+          aria-selected="false"
+        >
+          Calendar View
+        </button>
+      </div>
+    </div>
+
+    <div class="body">
+      <!-- Event List tab content (same IDs as before so the original JS works unchanged) -->
+      <div id="eventTab" class="tab-content fixed-width active" role="tabpanel">
+        <p class="hint">
+          Tap an event to edit its details. You can also add new events. All
+          changes will be reflected in the calendar display.
+        </p>
+        <ul id="eventList" aria-label="Event List"></ul>
+        <button id="addEventRowBtn">+ Add Event</button>
+      </div>
+
+      <!-- Calendar View tab content (same structure & IDs as original) -->
+      <div
+        id="calendarTab"
+        class="tab-content fixed-width"
+        role="tabpanel"
+        aria-hidden="true"
+      >
+        <p class="hint">
+          The calendar shows months around your events. Future event days are
+          highlighted in blue.
+        </p>
+        <div id="calendars"></div>
+        <div class="controls">
+          <label>
+            Display
+            <input type="number" id="monthsBefore" min="0" value="1" /> months
+            before and
+            <input type="number" id="monthsAfter" min="0" value="3" /> months
+            after
+          </label>
+          <button id="applyBtn">Refresh Calendar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer"><h1 class="fixed-width">Event Calendar</h1></div>
+
+    <div id="tooltip"></div>
+
+    <script>
+      /* =========================
+         Tab switching logic
+         - preserves original DOM IDs and does not change functionality
+         - simple class toggle; also updates aria attributes
+         ========================= */
+      (function setupTabs() {
+        const tabButtons = document.querySelectorAll(".tab-btn");
+        const tabContents = document.querySelectorAll(".tab-content");
+
+        tabButtons.forEach((btn) => {
+          btn.addEventListener("click", () => {
+            // Remove active state from all buttons and contents
+            tabButtons.forEach((b) => {
+              b.classList.remove("active");
+              b.setAttribute("aria-selected", "false");
+            });
+            tabContents.forEach((c) => {
+              c.classList.remove("active");
+              c.setAttribute("aria-hidden", "true");
+            });
+
+            // Activate clicked tab/button and its content panel
+            btn.classList.add("active");
+            btn.setAttribute("aria-selected", "true");
+            const tabId = btn.dataset.tab;
+            const panel = document.getElementById(tabId);
+            if (panel) {
+              panel.classList.add("active");
+              panel.setAttribute("aria-hidden", "false");
+            }
+          });
+        });
+      })();
+
+      /* =========================
+         Original application code (kept intact)
+         - all original functions, variables, IDs and behavior preserved
+         - English comments added but logic unchanged
+         ========================= */
+
+      // Generate a short unique id for events
+      function generateId() {
+        return "_" + Math.random().toString(36).substr(2, 9);
+      }
+
+      // Normalize a date to midnight (local) for comparisons
+      function clamp(date) {
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      }
+
+      // Compute absolute day difference between two Date objects
+      function daysBetween(a, b) {
+        return Math.round(Math.abs((b - a) / (1000 * 60 * 60 * 24)));
+      }
+
+      // Parse yyyy-mm-dd from input[type=date] into a Date object (local)
+      function parseDateFromInput(value) {
+        const parts = value.split("-");
+        if (parts.length !== 3) return null;
+        return new Date(
+          parseInt(parts[0]),
+          parseInt(parts[1]) - 1,
+          parseInt(parts[2])
+        );
+      }
+
+      // Format a Date to yyyy-mm-dd for input[type=date] value
+      function formatDateToInput(date) {
+        const y = date.getFullYear();
+        const m = (date.getMonth() + 1).toString().padStart(2, "0");
+        const d = date.getDate().toString().padStart(2, "0");
+        return `${y}-${m}-${d}`;
+      }
+
+      // Human readable date string (uses locale)
+      function formatDateReadable(date) {
+        return date.toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      }
+
+      // ===== initial sample events (unchanged) =====
+      let rawEvents = [
+        {
+          name: "25_Spring",
+          start: "2025-04-06",
+          end: "2025-04-14",
+        },
+        {
+          name: "25_Summer",
+          start: "2025-07-29",
+          end: "2025-08-07",
+        },
+        {
+          name: "25_FRA",
+          start: "2025-09-27",
+          end: "2025-10-05",
+        },
+        {
+          name: "25_TYO",
+          start: "2025-12-21",
+          end: "2025-12-28",
+        },
+        {
+          name: "26_ORD",
+          start: "2026-01-26",
+          end: "2026-01-30",
+        },
+        {
+          name: "26_Spring",
+          start: "2026-04-06",
+          end: "2026-04-14",
+        },
+        {
+          name: "26_June",
+          start: "2026-06-21",
+          end: "2026-06-29",
+        },
+        {
+          name: "26_Fall",
+          start: "2026-09-13",
+          end: "2026-09-22",
+        },
+        {
+          name: "26_Xmas",
+          start: "2026-12-20",
+          end: "2026-12-28",
+        },
+      ];
+
+      // Grab references to DOM elements (IDs unchanged)
+      const monthsBeforeInput = document.getElementById("monthsBefore");
+      const monthsAfterInput = document.getElementById("monthsAfter");
+      const applyBtn = document.getElementById("applyBtn");
+      const eventListEl = document.getElementById("eventList");
+      const calendarsEl = document.getElementById("calendars");
+      const addEventRowBtn = document.getElementById("addEventRowBtn");
+      const tooltip = document.getElementById("tooltip");
+
+      // Track which event is being edited; "new" used for new item row
+      let editingId = null;
+
+      // Set sensible defaults for monthsBefore/monthsAfter based on events
+      function updateMonthRangeDefaults() {
+        if (!events.length) {
+          monthsBeforeInput.value = 0;
+          monthsAfterInput.value = 3;
+          return;
+        }
+        const today = new Date();
+        const todayMonthIndex = today.getFullYear() * 12 + today.getMonth();
+
+        const startMonths = events.map(
+          (e) => e.start.getFullYear() * 12 + e.start.getMonth()
+        );
+        const endMonths = events.map(
+          (e) => e.end.getFullYear() * 12 + e.end.getMonth()
+        );
+
+        monthsBeforeInput.value = Math.max(
+          0,
+          todayMonthIndex - Math.min(...startMonths)
+        );
+        monthsAfterInput.value = Math.max(
+          0,
+          Math.max(...endMonths) - todayMonthIndex
+        );
+      }
+
+      function initEvents(raw) {
+        events = raw.map((e) => ({
+          id: generateId(),
+          name: e.name,
+          start: parseDateFromInput(e.start),
+          end: parseDateFromInput(e.end),
+        }));
+      }
+
+      // Render the list of events (editable rows and summary rows)
+      function renderEventList() {
+        eventListEl.innerHTML = "";
+        const sorted = [...events].sort((a, b) => a.start - b.start);
+        sorted.forEach((evt, idx) => {
+          const li = document.createElement("li");
+          li.className = "event-row";
+          if (editingId === evt.id) {
+            // Editing mode: show inputs + Save / Cancel
+            const nameInput = document.createElement("input");
+            nameInput.type = "text";
+            nameInput.value = evt.name;
+            const startInput = document.createElement("input");
+            startInput.type = "date";
+            startInput.value = formatDateToInput(evt.start);
+            const endInput = document.createElement("input");
+            endInput.type = "date";
+            endInput.value = formatDateToInput(evt.end);
+            const saveBtn = document.createElement("button");
+            saveBtn.textContent = "Save";
+            saveBtn.onclick = () => {
+              if (!nameInput.value.trim()) {
+                alert("Please enter a name");
+                return;
+              }
+              if (!startInput.value || !endInput.value) {
+                alert("Please select start and end dates");
+                return;
+              }
+              const s = parseDateFromInput(startInput.value),
+                e = parseDateFromInput(endInput.value);
+              if (e < s) {
+                alert("End date cannot be before start");
+                return;
+              }
+              evt.name = nameInput.value.trim();
+              evt.start = s;
+              evt.end = e;
+              editingId = null;
+              updateMonthRangeDefaults();
+              renderAll();
+            };
+            const cancelBtn = document.createElement("button");
+            cancelBtn.textContent = "Cancel";
+            cancelBtn.className = "cancel";
+            cancelBtn.onclick = () => {
+              editingId = null;
+              renderEventList();
+            };
+            li.appendChild(nameInput);
+            li.appendChild(startInput);
+            li.appendChild(endInput);
+            li.appendChild(saveBtn);
+            li.appendChild(cancelBtn);
+          } else {
+            // Read-only mode: show name, dates, gap info, Delete button
+            const totalDays = daysBetween(evt.start, evt.end) + 1;
+
+            const baseInfo = document.createElement("span");
+            baseInfo.className = "event-info";
+            baseInfo.innerHTML = `${
+              evt.name
+            }  <span class="event-date">| ${formatDateReadable(
+              evt.start
+            )} — ${formatDateReadable(evt.end)} (${totalDays} d)</span>`;
+            baseInfo.title = "Click to edit";
+            baseInfo.onclick = () => {
+              editingId = evt.id;
+              renderEventList();
+            };
+            li.appendChild(baseInfo);
+
+            if (idx < sorted.length - 1) {
+              const nextStart = sorted[idx + 1].start;
+              const daysToNext = Math.max(
+                0,
+                daysBetween(evt.end, nextStart) - 1
+              );
+              const gapText = ` →  ${daysToNext} d until next`;
+              const gapInfo = document.createElement("div");
+              gapInfo.className = "event-interval";
+              gapInfo.textContent = gapText;
+              li.appendChild(gapInfo);
+            }
+
+            const editBtn = document.createElement("button");
+            editBtn.textContent = "Edit";
+            editBtn.onclick = () => {
+              editingId = evt.id;
+              renderEventList();
+            };
+            li.appendChild(editBtn);
+            const delBtn = document.createElement("button");
+            delBtn.textContent = "Delete";
+            delBtn.onclick = () => {
+              if (confirm(`Delete "${evt.name}"?`)) {
+                events = events.filter((e) => e.id !== evt.id);
+                if (editingId === evt.id) editingId = null;
+                updateMonthRangeDefaults();
+                renderAll();
+              }
+            };
+            li.appendChild(delBtn);
+          }
+          eventListEl.appendChild(li);
+        });
+      }
+
+      // Handler for "+ Add Event" button (creates an inline new row)
+      addEventRowBtn.onclick = () => {
+        if (editingId) {
+          editingId = null;
+          renderEventList();
+        }
+
+        if (editingId === "new") return;
+        editingId = "new";
+        const li = document.createElement("li");
+        li.className = "event-row";
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.placeholder = "Event name";
+        nameInput.value = `Event ${events.length + 1}`;
+        const startInput = document.createElement("input");
+        startInput.type = "date";
+        const endInput = document.createElement("input");
+        endInput.type = "date";
+        const saveBtn = document.createElement("button");
+        saveBtn.textContent = "Save";
+        saveBtn.onclick = () => {
+          const name = nameInput.value.trim(),
+            start = startInput.value,
+            end = endInput.value;
+          if (!name) {
+            alert("Please enter event name");
+            return;
+          }
+          if (!start || !end) {
+            alert("Please select start and end");
+            return;
+          }
+          if (parseDateFromInput(end) < parseDateFromInput(start)) {
+            alert("End date cannot be before start");
+            return;
+          }
+          events.push({
+            id: generateId(),
+            name,
+            start: parseDateFromInput(start),
+            end: parseDateFromInput(end),
+          });
+          editingId = null;
+          updateMonthRangeDefaults();
+          renderAll();
+        };
+        const cancelBtn = document.createElement("button");
+        cancelBtn.textContent = "Cancel";
+        cancelBtn.className = "cancel";
+        cancelBtn.onclick = () => {
+          editingId = null;
+          renderEventList();
+        };
+        li.appendChild(nameInput);
+        li.appendChild(startInput);
+        li.appendChild(endInput);
+        li.appendChild(saveBtn);
+        li.appendChild(cancelBtn);
+        eventListEl.appendChild(li);
+      };
+
+      // Render the calendar months based on monthsBefore/monthsAfter inputs
+      function renderCalendars() {
+        calendarsEl.innerHTML = "";
+        const today = new Date();
+        const before = parseInt(monthsBeforeInput.value) || 0;
+        const after = parseInt(monthsAfterInput.value) || 0;
+        for (let i = -before; i <= after; i++) {
+          calendarsEl.appendChild(
+            renderMonth(new Date(today.getFullYear(), today.getMonth() + i, 1))
+          );
+        }
+      }
+
+      // Render a single month's grid and wire up event tooltips
+      function renderMonth(firstOfMonth) {
+        const div = document.createElement("div");
+        div.className = "month";
+        const title = document.createElement("div");
+        title.className = "month-title";
+        title.textContent = firstOfMonth.toLocaleString("default", {
+          month: "long",
+          year: "numeric",
+        });
+        div.appendChild(title);
+        const weekdays = document.createElement("div");
+        weekdays.className = "weekdays";
+        ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].forEach((d) => {
+          const wd = document.createElement("div");
+          wd.textContent = d;
+          weekdays.appendChild(wd);
+        });
+        div.appendChild(weekdays);
+        const daysGrid = document.createElement("div");
+        daysGrid.className = "days";
+        const year = firstOfMonth.getFullYear(),
+          month = firstOfMonth.getMonth(),
+          firstDayIndex = new Date(year, month, 1).getDay(),
+          daysInMonth = new Date(year, month + 1, 0).getDate();
+        for (let i = 0; i < firstDayIndex; i++)
+          daysGrid.appendChild(document.createElement("div"));
+        const todayTime = clamp(new Date()).getTime();
+        const isTouch =
+          "ontouchstart" in window || navigator.maxTouchPoints > 0;
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dayDate = new Date(year, month, d),
+            dayDiv = document.createElement("div");
+          dayDiv.className = "day";
+          dayDiv.textContent = d;
+
+          const dayOfWeek = dayDate.getDay(); // 0 = Sun, 6 = Sat
+          if (dayOfWeek === 0 || dayOfWeek === 6) {
+            dayDiv.classList.add("weekend");
+          }
+
+          const t = clamp(dayDate).getTime();
+          if (t === todayTime) dayDiv.classList.add("today");
+          events.forEach((evt) => {
+            if (
+              t >= clamp(evt.start).getTime() &&
+              t <= clamp(evt.end).getTime()
+            ) {
+              dayDiv.classList.add(
+                evt.end.getTime() < todayTime ? "past-event" : "event"
+              );
+              dayDiv.style.cursor = "pointer";
+              const info = `${evt.name}\n${formatDateReadable(
+                evt.start
+              )} — ${formatDateReadable(evt.end)}\nDuration: ${
+                daysBetween(evt.start, evt.end) + 1
+              } days`;
+              if (isTouch) {
+                const showTooltip = () => {
+                  const rect = dayDiv.getBoundingClientRect();
+                  tooltip.textContent = info;
+                  tooltip.style.left = rect.left + window.scrollX + 10 + "px";
+                  tooltip.style.top = rect.top + window.scrollY + 10 + "px";
+                  tooltip.style.opacity = 1;
+                  setTimeout(() => {
+                    tooltip.style.opacity = 0;
+                  }, 2500);
+                };
+                dayDiv.addEventListener("touchstart", (e) => {
+                  e.preventDefault();
+                  showTooltip();
+                });
+                dayDiv.addEventListener("click", showTooltip);
+              } else {
+                dayDiv.onmouseenter = (e) => {
+                  tooltip.textContent = info;
+                  tooltip.style.left = e.pageX + 10 + "px";
+                  tooltip.style.top = e.pageY + 10 + "px";
+                  tooltip.style.opacity = 1;
+                };
+                dayDiv.onmousemove = (e) => {
+                  tooltip.style.left = e.pageX + 10 + "px";
+                  tooltip.style.top = e.pageY + 10 + "px";
+                };
+                dayDiv.onmouseleave = () => {
+                  tooltip.style.opacity = 0;
+                };
+              }
+            }
+          });
+          daysGrid.appendChild(dayDiv);
+        }
+        div.appendChild(daysGrid);
+        return div;
+      }
+
+      // Hook up Refresh Calendar button (original behavior)
+      applyBtn.onclick = () => {
+        renderCalendars();
+      };
+
+      // Convenience function to refresh both list and calendar
+      function renderAll() {
+        renderEventList();
+        renderCalendars();
+      }
+
+      // Initialize default month range and render everything
+      initEvents(rawEvents);
+      updateMonthRangeDefaults();
+      renderAll();
+    </script>
+  </body>
+</html>
