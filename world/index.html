@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>World Path</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"
+    />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <script type="text/javascript" src="world-path-0.1.0.min.js"></script>
+    <script type="text/javascript" src="data.js"></script>
+    <script language="JavaScript">
+      var fullScreen = Util.getQueryStringByName("fullscreen") != "false";
+      var map = new WorldMap();
+      var frame = new Frame(map, 1000, 400, fullScreen);
+
+      function pageLoad() {
+        var wrapper = document.getElementById("container");
+        frame.renderInto(wrapper, function () {
+          /* Render customized buttons when renderred */
+          // China
+          frame.addCustomButton("M0,0 H32 V32 H0 Z M16,8 V24", 784, 146, 24);
+          // US
+          frame.addCustomButton(
+            "M0,0 H32 V32 H0 Z M8,8 H22 V16 H10 V24 H24",
+            150,
+            120,
+            15
+          );
+          // EURO
+          frame.addCustomButton(
+            "M0,0 H32 V32 H0 Z M8,8 H22 V24 H8 M8,16 H24",
+            488,
+            97,
+            30
+          );
+        });
+
+        if (fullScreen) {
+          Util.$("linkFullsreen").style.display = "none";
+        } else {
+          // new WorldMap().renderInto(document.getElementById("standaloneMap"));
+          Util.$("pageWrapper").style.padding = "6px";
+        }
+      }
+
+      window.addEventListener("load", pageLoad, true);
+    </script>
+    <style type="text/css">
+      body,
+      html {
+        font-size: 12px;
+        color: #000;
+        font-family: "Lucida Grande", verdana, arial, helvetica, sans-serif;
+        margin: 0px;
+        padding: 0px;
+      }
+
+      a {
+        color: #00f;
+      }
+
+      .no-select {
+        moz-user-select: -moz-none;
+        -moz-user-select: none;
+        -o-user-select: none;
+        -khtml-user-select: none;
+        -webkit-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="pageWrapper">
+      <a href="?fullscreen=true" id="linkFullsreen">Fullscreen</a>
+      <div id="container"></div>
+      <div id="standaloneMap"></div>
+    </div>
+  </body>
+</html>
