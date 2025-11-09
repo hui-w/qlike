@@ -20,21 +20,21 @@
         var wrapper = document.getElementById("container");
         frame.renderInto(wrapper, function () {
           /* Render customized buttons when renderred */
-          // China
+          // 1
           frame.addCustomButton("M0,0 H32 V32 H0 Z M16,8 V24", 784, 146, 24);
-          // US
+          // 2
           frame.addCustomButton(
             "M0,0 H32 V32 H0 Z M8,8 H22 V16 H10 V24 H24",
-            150,
-            120,
-            15
+            500,
+            100,
+            18
           );
-          // EURO
+          // 3
           frame.addCustomButton(
             "M0,0 H32 V32 H0 Z M8,8 H22 V24 H8 M8,16 H24",
-            488,
-            97,
-            30
+            200,
+            120,
+            12
           );
         });
 
@@ -65,7 +65,7 @@
       /* ===================================================== */
       /* TEXT SELECTION & TOUCH INTERACTION PREVENTION       */
       /* ===================================================== */
-      
+
       /* Base user-select prevention for map elements */
       .no-select,
       #container,
@@ -83,7 +83,7 @@
       #container *,
       svg,
       svg * {
-        -webkit-touch-callout: none;          /* Prevent iOS context menu */
+        -webkit-touch-callout: none; /* Prevent iOS context menu */
         -webkit-tap-highlight-color: transparent; /* Remove tap highlight */
       }
 
@@ -93,7 +93,7 @@
         user-select: none !important;
         -webkit-user-select: none !important;
         -moz-user-select: none !important;
-        cursor: move !important;              /* Visual feedback during drag */
+        cursor: move !important; /* Visual feedback during drag */
       }
     </style>
   </head>

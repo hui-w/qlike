@@ -7,8 +7,7 @@
     <style>
       body {
         font-family: Arial, sans-serif;
-        max-width: 600px;
-        margin: 40px auto;
+        margin: 40px;
         padding: 0 10px;
         color: #333;
         line-height: 1.6;
@@ -46,6 +45,12 @@
         text-decoration: underline;
         color: #1557b0;
       }
+
+      a.list-item {
+        background-color: #eee;
+        padding: 4px 10px;
+        border-radius: 4px;
+      }
     </style>
   </head>
   <body>
@@ -57,43 +62,58 @@
         <a href="./event-calendar.html" target="_blank">Event Calendar</a>
       </li>
       <li>
-        <a href="./countdown/?t=2025-09-27T08:30:00+02:00" target="_blank"
-          >Next Upgrade (25 Fra)</a
+        Upgrade History:
+        <a
+          class="list-item"
+          href="./countdown/?t=2025-09-27T08:30:00+02:00"
+          target="_blank"
+          >CDG25</a
         >
       </li>
       <li>
-        <a href="./countdown/?t=2025-12-21T17:20:00+09:00" target="_blank"
-          >Next Upgrade (25 JPN)</a
+        Next Upgrade:
+        <a
+          class="list-item"
+          href="./countdown/?t=2025-12-21T17:20:00+09:00"
+          target="_blank"
+          >NRT25</a
+        >
+        <a
+          class="list-item"
+          href="./countdown/?t=2026-01-25T10:06:00-06:00"
+          target="_blank"
+          >ORD26</a
+        >
+        <a
+          class="list-item"
+          href="./countdown/?t=2026-03-29T19:20:00+08:00"
+          target="_blank"
+          >PVG26</a
         >
       </li>
+
       <li>
-        <a href="./countdown/?t=2026-01-25T10:06:00-06:00" target="_blank"
-          >Next Upgrade (26 US)</a
+        Maps:
+        <a class="list-item" href="../world/?profile=h,y,hy" target="_blank">
+          H and Y</a
+        >
+        <a class="list-item" href="../world/?profile=hy" target="_blank">
+          H or Y</a
+        >
+        <a class="list-item" href="../world/?profile=y,hy" target="_blank">
+          Y Only</a
+        >
+        <a class="list-item" href="../world/?profile=h,hy" target="_blank">
+          H Only</a
         >
       </li>
-      <li>
-        <a href="./countdown/?t=2026-03-29T19:20:00+08:00" target="_blank"
-          >Next Upgrade (26 SH)</a
-        >
-      </li>
+
       <li>
         <a href="./countdown/?t=20250123" target="_blank"
           >Days Since Launched</a
         >
       </li>
 
-      <li>
-        <a href="../world/?profile=h,y,hy" target="_blank">Map for H and Y</a>
-      </li>
-      <li>
-        <a href="../world/?profile=hy" target="_blank">Map for H or Y</a>
-      </li>
-      <li>
-        <a href="../world/?profile=y,hy" target="_blank">Map for Y</a>
-      </li>
-      <li>
-        <a href="../world/?profile=h,hy" target="_blank">Map for H</a>
-      </li>
       <li>
         <a href="../next-624.html" target="_blank">Days Until Next 624</a>
       </li>
