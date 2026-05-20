@@ -378,17 +378,20 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+  min-width: 0;
 }
 
 .add-time-entry-form .field-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.65rem;
+  min-width: 0;
 }
 
 .add-time-entry-form .field-row .field {
   flex: 1 1 9.5rem;
   min-width: 0;
+  max-width: 100%;
 }
 
 .field {
@@ -397,8 +400,7 @@ body {
   gap: 0.3rem;
 }
 
-.field-label,
-.label-preset-field > .field-label {
+.field-label {
   font-size: 0.8rem;
   color: var(--color-text-muted);
 }
@@ -457,6 +459,14 @@ body {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.add-time-entry-form input[type="date"],
+.add-time-entry-form input[type="time"] {
+  display: block;
 }
 
 .time-entry-dialog-actions {
@@ -494,28 +504,25 @@ body {
   background: #f5f5f5;
 }
 
-/*
- * iPhone / iPad Safari: native date/time inside `<dialog>` can clip or spill
- * (WebKit + narrow modal). Desktop layout is unchanged — class is set in app.js.
- */
-html.apple-touch-webkit .add-time-entry-dialog,
-html.apple-touch-webkit .add-time-entry-form {
-  overflow: visible;
+/* iOS: contain date/time layout; picker uses a system sheet (class set in app.js). */
+html.apple-touch-webkit .add-time-entry-dialog {
+  overflow: hidden;
 }
 
 html.apple-touch-webkit .add-time-entry-form .field-row {
   flex-direction: column;
+  align-items: stretch;
 }
 
 html.apple-touch-webkit .add-time-entry-form .field-row .field {
-  flex: 1 1 auto;
-  flex-basis: auto;
+  flex: 0 0 auto;
+  width: 100%;
 }
 
-html.apple-touch-webkit .add-time-entry-dialog input[type="date"],
-html.apple-touch-webkit .add-time-entry-dialog input[type="time"] {
-  min-width: 0;
-  max-width: 100%;
+html.apple-touch-webkit .add-time-entry-form input[type="date"],
+html.apple-touch-webkit .add-time-entry-form input[type="time"] {
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 @media (max-width: 36rem) {

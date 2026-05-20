@@ -25,20 +25,16 @@ const LEGACY_TIME_ENTRIES_STORAGE_KEY = "timetracker_entries";
 const DIALOG_TITLE_ADD = "Add time entry";
 const DIALOG_TITLE_EDIT = "Edit time entry";
 
-const PRESET_LABEL_RAW = [
+const PRESET_LABELS = Object.freeze([
+  "Bus Off",
+  "Bus On",
   "Home In",
   "Home Out",
   "Office In",
   "Office Out",
-  "Bus On",
-  "Bus Off",
-  "Train On",
   "Train Off",
-];
-
-const PRESET_LABELS = Object.freeze(
-  [...PRESET_LABEL_RAW].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })),
-);
+  "Train On",
+]);
 
 const STORAGE_HINT_TEXT =
   "All data is stored only in this browser's local storage. It stays after you refresh and is not synced across browsers or other devices.";
@@ -115,18 +111,26 @@ function isValidTimeEntry(value) {
   );
 }
 
+/**
+ * @param {string} json
+ * @returns {TimeEntry[] | null}
+ */
+function parseStoredEntries(json) {
+  const data = JSON.parse(json);
+  if (!Array.isArray(data) || !data.every(isValidTimeEntry)) return null;
+  return data;
+}
+
 function loadTimeEntries() {
   try {
     const fromNew = localStorage.getItem(TIME_ENTRIES_STORAGE_KEY);
-    if (fromNew) {
-      const data = JSON.parse(fromNew);
-      if (!Array.isArray(data) || !data.every(isValidTimeEntry)) return null;
-      return data;
-    }
+    if (fromNew) return parseStoredEntries(fromNew);
+
     const fromLegacy = localStorage.getItem(LEGACY_TIME_ENTRIES_STORAGE_KEY);
     if (!fromLegacy) return null;
-    const data = JSON.parse(fromLegacy);
-    if (!Array.isArray(data) || !data.every(isValidTimeEntry)) return null;
+
+    const data = parseStoredEntries(fromLegacy);
+    if (!data) return null;
     saveTimeEntries(data);
     localStorage.removeItem(LEGACY_TIME_ENTRIES_STORAGE_KEY);
     return data;
@@ -490,7 +494,6 @@ app.append(shell);
 
 const addTimeEntryDialog = document.createElement("dialog");
 addTimeEntryDialog.className = "add-time-entry-dialog";
-addTimeEntryDialog.tabIndex = -1;
 addTimeEntryDialog.innerHTML = `
   <form class="add-time-entry-form">
     <h2 class="add-time-entry-title">${DIALOG_TITLE_ADD}</h2>
@@ -525,6 +528,7 @@ const entryDateInput = addTimeEntryDialog.querySelector('input[name="entry-date"
 const entryTimeInput = addTimeEntryDialog.querySelector('input[name="entry-time"]');
 const labelInput = addTimeEntryDialog.querySelector('input[name="label"]');
 const cancelBtn = addTimeEntryDialog.querySelector(".btn-cancel");
+const saveBtn = addTimeEntryDialog.querySelector(".btn-save");
 const dialogTitleEl = addTimeEntryDialog.querySelector(".add-time-entry-title");
 const labelPresetGrid = addTimeEntryDialog.querySelector(".label-preset-grid");
 
@@ -534,28 +538,25 @@ if (
   !(entryTimeInput instanceof HTMLInputElement) ||
   !(labelInput instanceof HTMLInputElement) ||
   !(cancelBtn instanceof HTMLButtonElement) ||
+  !(saveBtn instanceof HTMLButtonElement) ||
   !(dialogTitleEl instanceof HTMLElement) ||
   !(labelPresetGrid instanceof HTMLElement)
 ) {
   throw new Error("Time tracker: dialog markup is missing required nodes.");
 }
 
-function initLabelPresetButtons() {
-  for (const preset of PRESET_LABELS) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "label-preset-option";
-    btn.textContent = preset;
-    btn.addEventListener("click", () => {
-      labelInput.value = preset;
-      labelInput.setCustomValidity("");
-    });
-    labelPresetGrid.append(btn);
-  }
-  labelInput.addEventListener("input", () => labelInput.setCustomValidity(""));
+for (const preset of PRESET_LABELS) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "label-preset-option";
+  btn.textContent = preset;
+  btn.addEventListener("click", () => {
+    labelInput.value = preset;
+    labelInput.setCustomValidity("");
+  });
+  labelPresetGrid.append(btn);
 }
-
-initLabelPresetButtons();
+labelInput.addEventListener("input", () => labelInput.setCustomValidity(""));
 
 // --- Dialog ---
 
@@ -569,23 +570,10 @@ function clearDialogValidity() {
   labelInput.setCustomValidity("");
 }
 
-function blurFocusedFormControl() {
-  const active = document.activeElement;
-  if (
-    active instanceof HTMLInputElement ||
-    active instanceof HTMLSelectElement ||
-    active instanceof HTMLTextAreaElement
-  ) {
-    active.blur();
-  }
-}
-
 function showTimeEntryDialog() {
   addTimeEntryDialog.showModal();
-  blurFocusedFormControl();
   requestAnimationFrame(() => {
-    blurFocusedFormControl();
-    addTimeEntryDialog.focus({ preventScroll: true });
+    saveBtn.focus({ preventScroll: true });
   });
 }
 
@@ -681,13 +669,11 @@ function appendRelationLines(parent, rel) {
  * @param {TimeEntry} currentEntry
  * @returns {HTMLLIElement}
  */
-function createTimeEntryGapElement(previousEntry, currentEntry) {
-  const rel = versusAnchorDeltaDisplay(
-    currentEntry.timestamp,
-    previousEntry.timestamp,
-    "previous",
-  );
-
+/**
+ * @param {RelationDisplay} rel
+ * @returns {HTMLLIElement}
+ */
+function createTimeEntryGapElement(rel) {
   const li = document.createElement("li");
   li.className = "time-entry-gap";
   li.setAttribute("aria-hidden", "true");
@@ -735,10 +721,11 @@ function createTimeEntryElement(timeEntry, previousEntry, firstEntry) {
   rowLabel.className = "time-entry-row time-entry-row-label";
   rowLabel.append(labelEl);
 
+  const date = new Date(timestamp);
   const timeEl = document.createElement("time");
   timeEl.className = "time-entry-datetime";
-  timeEl.dateTime = new Date(timestamp).toISOString();
-  timeEl.textContent = formatLocalYmdHms(new Date(timestamp));
+  timeEl.dateTime = date.toISOString();
+  timeEl.textContent = formatLocalYmdHms(date);
 
   const metaLeft = document.createElement("div");
   metaLeft.className = "time-entry-meta-left";
@@ -815,7 +802,12 @@ function renderTimeEntries() {
   const frag = document.createDocumentFragment();
   for (let i = 0; i < timeEntries.length; i++) {
     if (i > 0) {
-      frag.append(createTimeEntryGapElement(timeEntries[i - 1], timeEntries[i]));
+      const gapRel = versusAnchorDeltaDisplay(
+        timeEntries[i].timestamp,
+        timeEntries[i - 1].timestamp,
+        "previous",
+      );
+      frag.append(createTimeEntryGapElement(gapRel));
     }
     frag.append(
       createTimeEntryElement(
