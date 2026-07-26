@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -422,7 +422,7 @@
         return new Date(
           parseInt(parts[0]),
           parseInt(parts[1]) - 1,
-          parseInt(parts[2])
+          parseInt(parts[2]),
         );
       }
 
@@ -483,7 +483,7 @@
         {
           name: "26_Fall",
           start: "2026-09-13",
-          end: "2026-09-22",
+          end: "2026-09-21",
         },
         {
           name: "26_Xmas",
@@ -515,19 +515,19 @@
         const todayMonthIndex = today.getFullYear() * 12 + today.getMonth();
 
         const startMonths = events.map(
-          (e) => e.start.getFullYear() * 12 + e.start.getMonth()
+          (e) => e.start.getFullYear() * 12 + e.start.getMonth(),
         );
         const endMonths = events.map(
-          (e) => e.end.getFullYear() * 12 + e.end.getMonth()
+          (e) => e.end.getFullYear() * 12 + e.end.getMonth(),
         );
 
         monthsBeforeInput.value = Math.max(
           0,
-          todayMonthIndex - Math.min(...startMonths)
+          todayMonthIndex - Math.min(...startMonths),
         );
         monthsAfterInput.value = Math.max(
           0,
-          Math.max(...endMonths) - todayMonthIndex
+          Math.max(...endMonths) - todayMonthIndex,
         );
       }
 
@@ -603,7 +603,7 @@
             baseInfo.innerHTML = `${
               evt.name
             }  <span class="event-date">| ${formatDateReadable(
-              evt.start
+              evt.start,
             )} — ${formatDateReadable(evt.end)} (${totalDays} d)</span>`;
             baseInfo.title = "Click to edit";
             baseInfo.onclick = () => {
@@ -616,7 +616,7 @@
               const nextStart = sorted[idx + 1].start;
               const daysToNext = Math.max(
                 0,
-                daysBetween(evt.end, nextStart) - 1
+                daysBetween(evt.end, nextStart) - 1,
               );
               const gapText = ` →  ${daysToNext} d until next`;
               const gapInfo = document.createElement("div");
@@ -718,7 +718,7 @@
         const after = parseInt(monthsAfterInput.value) || 0;
         for (let i = -before; i <= after; i++) {
           calendarsEl.appendChild(
-            renderMonth(new Date(today.getFullYear(), today.getMonth() + i, 1))
+            renderMonth(new Date(today.getFullYear(), today.getMonth() + i, 1)),
           );
         }
       }
@@ -772,11 +772,11 @@
               t <= clamp(evt.end).getTime()
             ) {
               dayDiv.classList.add(
-                evt.end.getTime() < todayTime ? "past-event" : "event"
+                evt.end.getTime() < todayTime ? "past-event" : "event",
               );
               dayDiv.style.cursor = "pointer";
               const info = `${evt.name}\n${formatDateReadable(
-                evt.start
+                evt.start,
               )} — ${formatDateReadable(evt.end)}\nDuration: ${
                 daysBetween(evt.start, evt.end) + 1
               } days`;
