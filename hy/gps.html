@@ -1,0 +1,1376 @@
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CSV GPS Route Viewer</title>
+
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      }
+
+      body {
+        overflow: hidden;
+      }
+
+      #app {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+
+      #map {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+        background: #e8e8e8;
+      }
+
+      #mapCanvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        cursor: grab;
+      }
+
+      #mapCanvas:active {
+        cursor: grabbing;
+      }
+
+      /* =========================
+       Control Panel
+       ========================= */
+
+      #controlPanel {
+        display: none;
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: min(680px, calc(100vw - 40px));
+        background: rgba(255, 255, 255, 0.97);
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+        padding: 18px;
+        z-index: 1000;
+        box-sizing: border-box;
+      }
+
+      #controlPanel.visible {
+        display: block;
+      }
+
+      .controlTitle {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 14px;
+      }
+
+      .controlRow {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+      }
+
+      #fileInput {
+        flex: 1;
+        min-width: 200px;
+      }
+
+      button,
+      select {
+        padding: 7px 12px;
+        border: 1px solid #bbb;
+        border-radius: 6px;
+        background: #fff;
+        cursor: pointer;
+        font: inherit;
+      }
+
+      button:hover,
+      select:hover {
+        background: #f2f2f2;
+      }
+
+      .mapTypeButton.active {
+        background: #333;
+        color: white;
+        border-color: #333;
+      }
+
+      #exportBtn {
+        background: #2563eb;
+        color: white;
+        border-color: #2563eb;
+      }
+
+      #exportBtn:hover {
+        background: #1d4ed8;
+      }
+
+      #exportBtn:disabled {
+        background: #999;
+        border-color: #999;
+        cursor: wait;
+      }
+
+      #status {
+        margin-top: 12px;
+        color: #555;
+        font-size: 13px;
+      }
+
+      #error {
+        margin-top: 6px;
+        color: #b00020;
+        font-size: 13px;
+      }
+
+      .hint {
+        margin-top: 12px;
+        color: #888;
+        font-size: 12px;
+      }
+
+      /* =========================
+       Legend
+       ========================= */
+
+      #infoPanel {
+        position: absolute;
+        right: 12px;
+        top: 12px;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 10px 12px;
+        border-radius: 6px;
+        box-shadow: 0 1px 5px rgba(0, 0, 0, 0.25);
+        font-size: 12px;
+        z-index: 10;
+        max-width: 320px;
+        max-height: calc(100% - 24px);
+        overflow-y: auto;
+      }
+
+      .legendRow {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin: 5px 0;
+      }
+
+      .swatch {
+        width: 24px;
+        height: 4px;
+        display: inline-block;
+        flex-shrink: 0;
+      }
+
+      .routeToggle {
+        border: none;
+        background: transparent;
+        padding: 2px 4px;
+        margin: 0;
+        font: inherit;
+        font-size: 12px;
+        color: #222;
+        cursor: pointer;
+        text-align: left;
+        border-radius: 3px;
+      }
+
+      .routeToggle:hover {
+        background: #eee;
+      }
+
+      .routeToggle.hidden {
+        color: #999;
+        text-decoration: line-through;
+      }
+
+      /* =========================
+       Drag & Drop
+       ========================= */
+
+      #dropOverlay {
+        display: none;
+        position: absolute;
+        inset: 20px;
+        border: 3px dashed #377eb8;
+        background: rgba(255, 255, 255, 0.85);
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: #377eb8;
+        z-index: 20;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="app">
+      <div id="map">
+        <canvas id="mapCanvas"></canvas>
+
+        <div id="dropOverlay">Drop CSV files here</div>
+
+        <div id="infoPanel">
+          <div id="legend">
+            <div style="margin-top: 6px; color: #666">
+              Load CSV files to display routes.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Double-click map to open -->
+      <div id="controlPanel">
+        <div class="controlTitle">CSV GPS Route Viewer</div>
+
+        <!-- File controls -->
+        <div class="controlRow">
+          <input id="fileInput" type="file" accept=".csv,text/csv" multiple />
+
+          <button id="clearBtn">Clear</button>
+
+          <button id="fitBtn">Fit all routes</button>
+        </div>
+
+        <!-- Map type -->
+        <div class="controlRow">
+          <span style="font-size: 13px; color: #555"> Map: </span>
+
+          <button class="mapTypeButton active" data-map-type="street">
+            Street
+          </button>
+
+          <button class="mapTypeButton" data-map-type="terrain">Terrain</button>
+
+          <button class="mapTypeButton" data-map-type="satellite">
+            Satellite
+          </button>
+        </div>
+
+        <!-- Export -->
+        <div class="controlRow">
+          <span style="font-size: 13px; color: #555"> Export: </span>
+
+          <select id="exportScale">
+            <option value="2">2×</option>
+            <option value="3">3×</option>
+            <option value="4">4×</option>
+          </select>
+
+          <button id="exportBtn">Export Large PNG</button>
+        </div>
+
+        <div id="status">Select or drop one or more CSV files.</div>
+
+        <div id="error"></div>
+
+        <div class="hint">
+          Double-click anywhere outside this dialog to close it.
+        </div>
+      </div>
+      ```
+    </div>
+
+    <script>
+      /* =========================================================
+       Configuration
+       ========================================================= */
+
+      const COLORS = [
+        "#e41a1c",
+        "#377eb8",
+        "#4daf4a",
+        "#984ea3",
+        "#ff7f00",
+        "#a65628",
+        "#f781bf",
+        "#666666",
+        "#66c2a5",
+        "#fc8d62",
+        "#8da0cb",
+        "#e78ac3",
+        "#a6d854",
+        "#ffd92f",
+        "#e5c494",
+      ];
+
+      /*
+       * Available map types
+       *
+       * street:
+       *   OpenStreetMap
+       *
+       * terrain:
+       *   OpenTopoMap
+       *
+       * satellite:
+       *   Esri World Imagery
+       */
+
+      const TILE_URLS = {
+        street: (z, x, y) =>
+          `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
+
+        terrain: (z, x, y) => `https://tile.opentopomap.org/${z}/${x}/${y}.png`,
+
+        satellite: (z, x, y) =>
+          `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`,
+      };
+
+      /* =========================================================
+       State
+       ========================================================= */
+
+      let routes = [];
+
+      let zoom = 14;
+
+      let centerLat = 49.263688;
+      let centerLon = -123.120411;
+
+      let dragging = false;
+
+      let dragStartX = 0;
+      let dragStartY = 0;
+
+      let originalCenterLat = centerLat;
+      let originalCenterLon = centerLon;
+
+      let mapType = "street";
+
+      /* =========================================================
+       DOM
+       ========================================================= */
+
+      const canvas = document.getElementById("mapCanvas");
+
+      const ctx = canvas.getContext("2d");
+
+      const fileInput = document.getElementById("fileInput");
+
+      const clearBtn = document.getElementById("clearBtn");
+
+      const fitBtn = document.getElementById("fitBtn");
+
+      const exportBtn = document.getElementById("exportBtn");
+
+      const exportScale = document.getElementById("exportScale");
+
+      const statusEl = document.getElementById("status");
+
+      const errorEl = document.getElementById("error");
+
+      const dropOverlay = document.getElementById("dropOverlay");
+
+      const legend = document.getElementById("legend");
+
+      const mapElement = document.getElementById("map");
+
+      const controlPanel = document.getElementById("controlPanel");
+
+      /* =========================================================
+       Control Panel
+       ========================================================= */
+
+      function toggleControlPanel() {
+        controlPanel.classList.toggle("visible");
+      }
+
+      document.addEventListener("dblclick", (e) => {
+        if (
+          controlPanel.classList.contains("visible") &&
+          controlPanel.contains(e.target)
+        ) {
+          return;
+        }
+
+        toggleControlPanel();
+      });
+
+      controlPanel.addEventListener("mousedown", (e) => e.stopPropagation());
+
+      controlPanel.addEventListener("click", (e) => e.stopPropagation());
+
+      /* =========================================================
+       Map Type
+       ========================================================= */
+
+      function setMapType(type) {
+        if (!TILE_URLS[type]) {
+          return;
+        }
+
+        mapType = type;
+
+        tileCache.clear();
+
+        document.querySelectorAll(".mapTypeButton").forEach((button) => {
+          button.classList.toggle("active", button.dataset.mapType === type);
+        });
+
+        draw();
+      }
+
+      document.querySelectorAll(".mapTypeButton").forEach((button) => {
+        button.addEventListener("click", () => {
+          setMapType(button.dataset.mapType);
+        });
+      });
+
+      /* =========================================================
+       Canvas
+       ========================================================= */
+
+      function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+
+        const dpr = window.devicePixelRatio || 1;
+
+        canvas.width = rect.width * dpr;
+
+        canvas.height = rect.height * dpr;
+
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        draw();
+      }
+
+      window.addEventListener("resize", resizeCanvas);
+
+      /* =========================================================
+       CSV Parser
+       ========================================================= */
+
+      function parseCSV(text) {
+        const rows = [];
+
+        let row = [];
+        let field = "";
+        let quoted = false;
+
+        for (let i = 0; i < text.length; i++) {
+          const c = text[i];
+
+          if (quoted) {
+            if (c === '"') {
+              if (text[i + 1] === '"') {
+                field += '"';
+                i++;
+              } else {
+                quoted = false;
+              }
+            } else {
+              field += c;
+            }
+          } else {
+            if (c === '"') {
+              quoted = true;
+            } else if (c === ",") {
+              row.push(field);
+              field = "";
+            } else if (c === "\n") {
+              row.push(field);
+              rows.push(row);
+
+              row = [];
+              field = "";
+            } else if (c === "\r") {
+              // Ignore CR
+            } else {
+              field += c;
+            }
+          }
+        }
+
+        if (field.length || row.length) {
+          row.push(field);
+          rows.push(row);
+        }
+
+        if (!rows.length) {
+          return [];
+        }
+
+        const headers = rows[0].map((x) => x.trim());
+
+        return rows
+          .slice(1)
+          .filter((row) => row.some((value) => String(value).trim() !== ""))
+          .map((row) => {
+            const obj = {};
+
+            headers.forEach((header, index) => {
+              obj[header] = (row[index] ?? "").trim();
+            });
+
+            return obj;
+          });
+      }
+
+      /* =========================================================
+       Utilities
+       ========================================================= */
+
+      function num(value) {
+        const n = Number(value);
+
+        return Number.isFinite(n) ? n : null;
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+      }
+
+      /* =========================================================
+       Web Mercator
+       ========================================================= */
+
+      function lonToX(lon) {
+        return (lon + 180) / 360;
+      }
+
+      function latToY(lat) {
+        const rad = (lat * Math.PI) / 180;
+
+        return (1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2;
+      }
+
+      function xToLon(x) {
+        return x * 360 - 180;
+      }
+
+      function yToLat(y) {
+        const n = Math.PI - 2 * Math.PI * y;
+
+        return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+      }
+
+      function worldSize() {
+        return 256 * Math.pow(2, zoom);
+      }
+
+      /* =========================================================
+       Geographic → Screen
+       ========================================================= */
+
+      function latLonToScreen(
+        lat,
+        lon,
+        targetWidth = canvas.clientWidth,
+        targetHeight = canvas.clientHeight,
+      ) {
+        const size = worldSize();
+
+        const centerX = lonToX(centerLon) * size;
+
+        const centerY = latToY(centerLat) * size;
+
+        const x = lonToX(lon) * size;
+
+        const y = latToY(lat) * size;
+
+        return {
+          x: targetWidth / 2 + (x - centerX),
+
+          y: targetHeight / 2 + (y - centerY),
+        };
+      }
+
+      /* =========================================================
+       Tile Cache
+       ========================================================= */
+
+      const tileCache = new Map();
+
+      /* =========================================================
+       Efficient Redraw
+       ========================================================= */
+
+      let redrawPending = false;
+
+      function requestRedraw() {
+        if (redrawPending) {
+          return;
+        }
+
+        redrawPending = true;
+
+        requestAnimationFrame(() => {
+          redrawPending = false;
+
+          draw();
+        });
+      }
+
+      /* =========================================================
+       Get Tile
+       ========================================================= */
+
+      function getTile(z, x, y) {
+        const n = Math.pow(2, z);
+
+        const wrappedX = ((x % n) + n) % n;
+
+        const key = `${mapType}/${z}/${wrappedX}/${y}`;
+
+        let img = tileCache.get(key);
+
+        if (img) {
+          return img;
+        }
+
+        img = new Image();
+
+        img.crossOrigin = "anonymous";
+
+        /*
+         * IMPORTANT:
+         *
+         * The tile is loaded asynchronously.
+         * When it finishes loading, redraw the map.
+         *
+         * This fixes the bug where the map stays blank
+         * until the user drags it.
+         */
+
+        img.onload = requestRedraw;
+
+        img.onerror = requestRedraw;
+
+        img.src = TILE_URLS[mapType](z, wrappedX, y);
+
+        tileCache.set(key, img);
+
+        return img;
+      }
+
+      /* =========================================================
+       Draw Tiles
+       ========================================================= */
+
+      function drawTiles(
+        targetCtx = ctx,
+        targetWidth = canvas.clientWidth,
+        targetHeight = canvas.clientHeight,
+      ) {
+        const tileSize = 256;
+
+        const world = worldSize();
+
+        const centerX = lonToX(centerLon) * world;
+
+        const centerY = latToY(centerLat) * world;
+
+        const minX = centerX - targetWidth / 2;
+
+        const minY = centerY - targetHeight / 2;
+
+        const maxX = centerX + targetWidth / 2;
+
+        const maxY = centerY + targetHeight / 2;
+
+        const startTileX = Math.floor(minX / tileSize);
+
+        const endTileX = Math.floor(maxX / tileSize);
+
+        const startTileY = Math.floor(minY / tileSize);
+
+        const endTileY = Math.floor(maxY / tileSize);
+
+        const n = Math.pow(2, zoom);
+
+        for (let ty = startTileY; ty <= endTileY; ty++) {
+          if (ty < 0 || ty >= n) {
+            continue;
+          }
+
+          for (let tx = startTileX; tx <= endTileX; tx++) {
+            const wrappedX = ((tx % n) + n) % n;
+
+            const screenX = tx * tileSize - minX;
+
+            const screenY = ty * tileSize - minY;
+
+            const key = `${mapType}/${zoom}/${wrappedX}/${ty}`;
+
+            const img = tileCache.get(key) || getTile(zoom, wrappedX, ty);
+
+            if (img.complete && img.naturalWidth) {
+              targetCtx.drawImage(img, screenX, screenY, tileSize, tileSize);
+            } else {
+              targetCtx.fillStyle = "#eeeeee";
+
+              targetCtx.fillRect(screenX, screenY, tileSize, tileSize);
+            }
+          }
+        }
+      }
+
+      /* =========================================================
+       Draw Routes
+       ========================================================= */
+
+      function drawRoutes(
+        targetCtx = ctx,
+        targetWidth = canvas.clientWidth,
+        targetHeight = canvas.clientHeight,
+      ) {
+        routes.forEach((route, routeIndex) => {
+          if (!route.visible) {
+            return;
+          }
+
+          const color = COLORS[routeIndex % COLORS.length];
+
+          const points = route.rows
+            .map((row) => {
+              const lat = num(row.latitude);
+
+              const lon = num(row.longitude);
+
+              if (lat === null || lon === null) {
+                return null;
+              }
+
+              return latLonToScreen(lat, lon, targetWidth, targetHeight);
+            })
+            .filter(Boolean);
+
+          if (points.length < 2) {
+            return;
+          }
+
+          targetCtx.beginPath();
+
+          targetCtx.moveTo(points[0].x, points[0].y);
+
+          for (let i = 1; i < points.length; i++) {
+            targetCtx.lineTo(points[i].x, points[i].y);
+          }
+
+          targetCtx.strokeStyle = color;
+
+          /*
+           * Keep route thickness independent
+           * of export size.
+           */
+
+          targetCtx.lineWidth = mapType === "street" ? 3 : 4;
+
+          targetCtx.lineJoin = "round";
+
+          targetCtx.lineCap = "round";
+
+          /*
+           * Semi-transparent routes make
+           * overlapping routes easier to see.
+           */
+
+          targetCtx.globalAlpha = 0.75;
+
+          targetCtx.stroke();
+
+          targetCtx.globalAlpha = 1;
+        });
+      }
+
+      /* =========================================================
+       Main Draw
+       ========================================================= */
+
+      function draw() {
+        if (!ctx) {
+          return;
+        }
+
+        const width = canvas.clientWidth;
+
+        const height = canvas.clientHeight;
+
+        ctx.clearRect(0, 0, width, height);
+
+        drawTiles(ctx, width, height);
+
+        drawRoutes(ctx, width, height);
+      }
+
+      /* =========================================================
+       Pan
+       ========================================================= */
+
+      canvas.addEventListener("mousedown", (e) => {
+        dragging = true;
+
+        dragStartX = e.clientX;
+
+        dragStartY = e.clientY;
+
+        originalCenterLat = centerLat;
+
+        originalCenterLon = centerLon;
+      });
+
+      window.addEventListener("mouseup", () => {
+        dragging = false;
+      });
+
+      window.addEventListener("mousemove", (e) => {
+        if (!dragging) {
+          return;
+        }
+
+        const dx = e.clientX - dragStartX;
+
+        const dy = e.clientY - dragStartY;
+
+        const size = worldSize();
+
+        const centerX = lonToX(originalCenterLon) * size;
+
+        const centerY = latToY(originalCenterLat) * size;
+
+        centerLon = xToLon((centerX - dx) / size);
+
+        centerLat = yToLat((centerY - dy) / size);
+
+        draw();
+      });
+
+      /* =========================================================
+       Zoom
+       ========================================================= */
+
+      canvas.addEventListener(
+        "wheel",
+        (e) => {
+          e.preventDefault();
+
+          const oldZoom = zoom;
+
+          if (e.deltaY < 0) {
+            zoom = Math.min(19, zoom + 1);
+          } else {
+            zoom = Math.max(2, zoom - 1);
+          }
+
+          if (zoom === oldZoom) {
+            return;
+          }
+
+          draw();
+        },
+        {
+          passive: false,
+        },
+      );
+
+      /* =========================================================
+       Legend
+       ========================================================= */
+
+      function updateLegend() {
+        if (!routes.length) {
+          legend.innerHTML = `
+          <div style="margin-top:6px;color:#666">
+            Load CSV files to display routes.
+          </div>
+        `;
+
+          return;
+        }
+
+        legend.innerHTML = routes
+          .map((route, index) => {
+            const color = COLORS[index % COLORS.length];
+
+            /*
+             * Remove file extension.
+             */
+
+            const fileName = route.fileName.replace(/\.[^/.]+$/, "");
+
+            return `
+                <div class="legendRow">
+
+                  <span
+                    class="swatch"
+                    style="background:${color}">
+                  </span>
+
+                  <button
+                    class="routeToggle ${route.visible ? "" : "hidden"}"
+                    data-index="${index}"
+                    title="${route.visible ? "Hide route" : "Show route"}">
+
+                    ${escapeHtml(fileName)}
+
+                  </button>
+
+                </div>
+              `;
+          })
+          .join("");
+
+        legend.querySelectorAll(".routeToggle").forEach((button) => {
+          button.addEventListener("click", () => {
+            const index = Number(button.dataset.index);
+
+            routes[index].visible = !routes[index].visible;
+
+            updateLegend();
+
+            updateStatus();
+
+            draw();
+          });
+        });
+      }
+
+      /* =========================================================
+       Status
+       ========================================================= */
+
+      function updateStatus() {
+        const pointCount = routes.reduce(
+          (sum, route) => sum + route.rows.length,
+          0,
+        );
+
+        const visibleCount = routes.filter((route) => route.visible).length;
+
+        statusEl.textContent = !routes.length
+          ? "Select or drop one or more CSV files."
+          : `${routes.length} CSV file(s), ` +
+            `${visibleCount} visible, ` +
+            `${pointCount} GPS point(s)`;
+      }
+
+      /* =========================================================
+       Fit All
+       ========================================================= */
+
+      function fitAll() {
+        const points = [];
+
+        routes.forEach((route) => {
+          if (!route.visible) {
+            return;
+          }
+
+          route.rows.forEach((row) => {
+            const lat = num(row.latitude);
+
+            const lon = num(row.longitude);
+
+            if (lat !== null && lon !== null) {
+              points.push({
+                lat,
+                lon,
+              });
+            }
+          });
+        });
+
+        if (!points.length) {
+          return;
+        }
+
+        let minLat = Infinity;
+
+        let maxLat = -Infinity;
+
+        let minLon = Infinity;
+
+        let maxLon = -Infinity;
+
+        points.forEach((p) => {
+          minLat = Math.min(minLat, p.lat);
+
+          maxLat = Math.max(maxLat, p.lat);
+
+          minLon = Math.min(minLon, p.lon);
+
+          maxLon = Math.max(maxLon, p.lon);
+        });
+
+        centerLat = (minLat + maxLat) / 2;
+
+        centerLon = (minLon + maxLon) / 2;
+
+        const latRange = Math.max(maxLat - minLat, 0.001);
+
+        const lonRange = Math.max(maxLon - minLon, 0.001);
+
+        const maxRange = Math.max(latRange, lonRange);
+
+        if (maxRange > 1) {
+          zoom = 8;
+        } else if (maxRange > 0.5) {
+          zoom = 9;
+        } else if (maxRange > 0.2) {
+          zoom = 10;
+        } else if (maxRange > 0.1) {
+          zoom = 11;
+        } else if (maxRange > 0.05) {
+          zoom = 12;
+        } else if (maxRange > 0.02) {
+          zoom = 13;
+        } else if (maxRange > 0.01) {
+          zoom = 14;
+        } else {
+          zoom = 15;
+        }
+
+        draw();
+      }
+
+      /* =========================================================
+       Load CSV Files
+       ========================================================= */
+
+      async function loadFiles(files) {
+        errorEl.textContent = "";
+
+        const newRoutes = [];
+
+        for (const file of files) {
+          try {
+            const text = await file.text();
+
+            let rows = parseCSV(text);
+
+            if (rows.some((row) => row.dataTime !== undefined)) {
+              rows.sort(
+                (a, b) => (Number(a.dataTime) || 0) - (Number(b.dataTime) || 0),
+              );
+            }
+
+            rows = rows.filter(
+              (row) =>
+                num(row.latitude) !== null && num(row.longitude) !== null,
+            );
+
+            if (rows.length) {
+              newRoutes.push({
+                fileName: file.name,
+
+                rows,
+
+                visible: true,
+              });
+            }
+          } catch (err) {
+            console.error(err);
+
+            errorEl.textContent = `Failed to read ${file.name}`;
+          }
+        }
+
+        routes = newRoutes;
+
+        updateStatus();
+
+        updateLegend();
+
+        fitAll();
+      }
+
+      /* =========================================================
+       File Input
+       ========================================================= */
+
+      fileInput.addEventListener("change", async (e) => {
+        const files = Array.from(e.target.files || []);
+
+        if (!files.length) {
+          return;
+        }
+
+        await loadFiles(files);
+      });
+
+      /* =========================================================
+       Drag & Drop
+       ========================================================= */
+
+      mapElement.addEventListener("dragover", (e) => {
+        e.preventDefault();
+
+        dropOverlay.style.display = "flex";
+      });
+
+      mapElement.addEventListener("dragleave", (e) => {
+        if (!mapElement.contains(e.relatedTarget)) {
+          dropOverlay.style.display = "none";
+        }
+      });
+
+      mapElement.addEventListener("drop", async (e) => {
+        e.preventDefault();
+
+        dropOverlay.style.display = "none";
+
+        const files = Array.from(e.dataTransfer.files || []).filter((file) =>
+          file.name.toLowerCase().endsWith(".csv"),
+        );
+
+        if (files.length) {
+          await loadFiles(files);
+        }
+      });
+
+      /* =========================================================
+       Clear
+       ========================================================= */
+
+      clearBtn.addEventListener("click", () => {
+        fileInput.value = "";
+
+        routes = [];
+
+        updateStatus();
+
+        updateLegend();
+
+        draw();
+      });
+
+      /* =========================================================
+       Fit Button
+       ========================================================= */
+
+      fitBtn.addEventListener("click", fitAll);
+
+      /* =========================================================
+       Wait For Tiles
+       ========================================================= */
+
+      function waitForTiles(targetWidth, targetHeight) {
+        return new Promise((resolve) => {
+          const tileSize = 256;
+
+          const world = worldSize();
+
+          const centerX = lonToX(centerLon) * world;
+
+          const centerY = latToY(centerLat) * world;
+
+          const minX = centerX - targetWidth / 2;
+
+          const minY = centerY - targetHeight / 2;
+
+          const maxX = centerX + targetWidth / 2;
+
+          const maxY = centerY + targetHeight / 2;
+
+          const startTileX = Math.floor(minX / tileSize);
+
+          const endTileX = Math.floor(maxX / tileSize);
+
+          const startTileY = Math.floor(minY / tileSize);
+
+          const endTileY = Math.floor(maxY / tileSize);
+
+          const n = Math.pow(2, zoom);
+
+          const images = [];
+
+          for (let ty = startTileY; ty <= endTileY; ty++) {
+            if (ty < 0 || ty >= n) {
+              continue;
+            }
+
+            for (let tx = startTileX; tx <= endTileX; tx++) {
+              const wrappedX = ((tx % n) + n) % n;
+
+              const img = getTile(zoom, wrappedX, ty);
+
+              images.push(img);
+            }
+          }
+
+          if (!images.length) {
+            resolve();
+
+            return;
+          }
+
+          let remaining = images.length;
+
+          const done = () => {
+            remaining--;
+
+            if (remaining <= 0) {
+              resolve();
+            }
+          };
+
+          images.forEach((img) => {
+            if (img.complete) {
+              done();
+            } else {
+              img.addEventListener("load", done, {
+                once: true,
+              });
+
+              img.addEventListener("error", done, {
+                once: true,
+              });
+            }
+          });
+        });
+      }
+
+      /* =========================================================
+       Export Large PNG
+       ========================================================= */
+
+      async function exportLargePNG() {
+        if (!routes.length) {
+          alert("Please load at least one CSV route first.");
+
+          return;
+        }
+
+        const scale = Number(exportScale.value);
+
+        const baseWidth = Math.round(canvas.clientWidth);
+
+        const baseHeight = Math.round(canvas.clientHeight);
+
+        const exportWidth = baseWidth * scale;
+
+        const exportHeight = baseHeight * scale;
+
+        /*
+         * Protect against accidentally
+         * creating an enormous canvas.
+         */
+
+        const maxDimension = 10000;
+
+        if (exportWidth > maxDimension || exportHeight > maxDimension) {
+          alert(`Export size is too large: ${exportWidth} × ${exportHeight}`);
+
+          return;
+        }
+
+        exportBtn.disabled = true;
+
+        exportBtn.textContent = "Preparing...";
+
+        try {
+          /*
+           * Load all tiles required
+           * by the larger export area.
+           */
+
+          await waitForTiles(exportWidth, exportHeight);
+
+          exportBtn.textContent = "Rendering...";
+
+          /*
+           * Give the browser a moment
+           * to finish image decoding.
+           */
+
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          const exportCanvas = document.createElement("canvas");
+
+          exportCanvas.width = exportWidth;
+
+          exportCanvas.height = exportHeight;
+
+          const exportCtx = exportCanvas.getContext("2d");
+
+          exportCtx.fillStyle = "#eeeeee";
+
+          exportCtx.fillRect(0, 0, exportWidth, exportHeight);
+
+          /*
+           * Draw the larger map.
+           */
+
+          drawTiles(exportCtx, exportWidth, exportHeight);
+
+          /*
+           * Draw routes on top.
+           */
+
+          drawRoutes(exportCtx, exportWidth, exportHeight);
+
+          exportBtn.textContent = "Creating PNG...";
+
+          const blob = await new Promise((resolve) =>
+            exportCanvas.toBlob(resolve, "image/png"),
+          );
+
+          if (!blob) {
+            throw new Error("Unable to create PNG.");
+          }
+
+          const url = URL.createObjectURL(blob);
+
+          const link = document.createElement("a");
+
+          link.href = url;
+
+          link.download = `gps-map-${mapType}-${exportWidth}x${exportHeight}.png`;
+
+          document.body.appendChild(link);
+
+          link.click();
+
+          link.remove();
+
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+          exportBtn.textContent = "Export Large PNG";
+        } catch (err) {
+          console.error(err);
+
+          alert("Export failed. Please check the browser console for details.");
+
+          exportBtn.textContent = "Export Large PNG";
+        } finally {
+          exportBtn.disabled = false;
+        }
+      }
+
+      exportBtn.addEventListener("click", exportLargePNG);
+
+      /* =========================================================
+       Start
+       ========================================================= */
+
+      updateLegend();
+
+      resizeCanvas();
+    </script>
+  </body>
+</html>
