@@ -1060,33 +1060,86 @@
       );
 
       /* =========================================================
-       Touch Screen Support
-       ========================================================= */
+ Touch Screen Support
+ ========================================================= */
 
       let touchStartX = 0;
       let touchStartY = 0;
 
       let touchStartCenterLat = centerLat;
-
       let touchStartCenterLon = centerLon;
 
       let pinchStartDistance = 0;
       let pinchStartZoom = zoom;
+      let pinchLastZoom = zoom;
 
       function getTouchDistance(t1, t2) {
         const dx = t1.clientX - t2.clientX;
-
         const dy = t1.clientY - t2.clientY;
 
         return Math.sqrt(dx * dx + dy * dy);
       }
 
+      function getTouchMidpoint(t1, t2) {
+        return {
+          x: (t1.clientX + t2.clientX) / 2,
+          y: (t1.clientY + t2.clientY) / 2,
+        };
+      }
+
       /*
-       * Single finger:
-       *   Pan the map.
+       * Convert screen position to geographic coordinates.
+       */
+      function screenToLatLon(screenX, screenY) {
+        const width = canvas.clientWidth;
+        const height = canvas.clientHeight;
+
+        const size = worldSize();
+
+        const centerX = lonToX(centerLon) * size;
+        const centerY = latToY(centerLat) * size;
+
+        const worldX = centerX + (screenX - width / 2);
+
+        const worldY = centerY + (screenY - height / 2);
+
+        return {
+          lat: yToLat(worldY / size),
+          lon: xToLon(worldX / size),
+        };
+      }
+
+      /*
+       * Keep a geographic point at the same screen position
+       * after changing zoom.
+       */
+      function keepPointAtScreenPosition(lat, lon, screenX, screenY) {
+        const width = canvas.clientWidth;
+        const height = canvas.clientHeight;
+
+        const size = worldSize();
+
+        const pointX = lonToX(lon) * size;
+        const pointY = latToY(lat) * size;
+
+        const centerX = pointX - (screenX - width / 2);
+
+        const centerY = pointY - (screenY - height / 2);
+
+        centerLon = xToLon(centerX / size);
+        centerLat = yToLat(centerY / size);
+      }
+
+      /*
+       * =========================================================
+       * Single finger = Pan
        *
-       * Two fingers:
-       *   Pinch to zoom.
+       * Two fingers = Pinch Zoom
+       *
+       * IMPORTANT:
+       * zoom is ALWAYS an integer because the tile servers
+       * require integer zoom levels.
+       * =========================================================
        */
 
       canvas.addEventListener(
@@ -1094,20 +1147,30 @@
         (e) => {
           e.preventDefault();
 
+          /*
+           * One finger starts.
+           */
           if (e.touches.length === 1) {
             const touch = e.touches[0];
 
             touchStartX = touch.clientX;
-
             touchStartY = touch.clientY;
 
             touchStartCenterLat = centerLat;
-
             touchStartCenterLon = centerLon;
+
+            pinchStartDistance = 0;
+            pinchStartZoom = zoom;
+            pinchLastZoom = zoom;
           } else if (e.touches.length === 2) {
+
+          /*
+           * Two fingers start.
+           */
             pinchStartDistance = getTouchDistance(e.touches[0], e.touches[1]);
 
             pinchStartZoom = zoom;
+            pinchLastZoom = zoom;
           }
         },
         {
@@ -1121,7 +1184,9 @@
           e.preventDefault();
 
           /*
-           * One finger = pan
+           * =========================================================
+           * One finger = Pan
+           * =========================================================
            */
 
           if (e.touches.length === 1) {
@@ -1142,22 +1207,115 @@
             centerLat = yToLat((startCenterY - dy) / size);
 
             draw();
-          } else if (e.touches.length === 2) {
-            /*
-             * Two fingers = pinch zoom
-             */
+
+            return;
+          }
+
+          /*
+           * =========================================================
+           * Two fingers = Pinch Zoom
+           * =========================================================
+           */
+
+          if (e.touches.length === 2) {
             const distance = getTouchDistance(e.touches[0], e.touches[1]);
 
-            if (pinchStartDistance <= 0) {
+            if (!Number.isFinite(distance) || distance <= 0) {
               return;
             }
 
+            if (pinchStartDistance <= 0) {
+              pinchStartDistance = distance;
+              pinchStartZoom = zoom;
+              pinchLastZoom = zoom;
+              return;
+            }
+
+            /*
+             * Calculate pinch zoom level.
+             *
+             * Example:
+             *
+             * distance doubles
+             * => +1 zoom level
+             *
+             * distance halves
+             * => -1 zoom level
+             */
             const ratio = distance / pinchStartDistance;
 
             const zoomDelta = Math.log2(ratio);
 
-            zoom = Math.max(2, Math.min(19, pinchStartZoom + zoomDelta));
+            /*
+             * IMPORTANT:
+             *
+             * Round to an INTEGER.
+             *
+             * Never allow:
+             *
+             * 14.2
+             * 14.7
+             * 15.31
+             *
+             * because tile URLs require:
+             *
+             * 14
+             * 15
+             * etc.
+             */
+            const targetZoom = Math.max(
+              2,
+              Math.min(19, Math.round(pinchStartZoom + zoomDelta)),
+            );
 
+            /*
+             * Nothing to do if we are still
+             * inside the same zoom level.
+             */
+            if (targetZoom === pinchLastZoom) {
+              return;
+            }
+
+            /*
+             * Find the point underneath the midpoint
+             * between the fingers BEFORE changing zoom.
+             */
+            const midpoint = getTouchMidpoint(e.touches[0], e.touches[1]);
+
+            const rect = canvas.getBoundingClientRect();
+
+            const screenX = midpoint.x - rect.left;
+
+            const screenY = midpoint.y - rect.top;
+
+            const anchor = screenToLatLon(screenX, screenY);
+
+            /*
+             * Change zoom.
+             *
+             * targetZoom is guaranteed to be an integer.
+             */
+            zoom = targetZoom;
+
+            /*
+             * Keep the same geographic point
+             * underneath the fingers.
+             */
+            keepPointAtScreenPosition(anchor.lat, anchor.lon, screenX, screenY);
+
+            pinchLastZoom = targetZoom;
+
+            /*
+             * drawTiles() will automatically call getTile()
+             * for every visible tile at the NEW zoom level.
+             *
+             * getTile() starts the image download.
+             *
+             * img.onload -> requestRedraw()
+             *
+             * so the map will redraw automatically when
+             * the new tiles arrive.
+             */
             draw();
           }
         },
@@ -1172,25 +1330,42 @@
           e.preventDefault();
 
           /*
-           * If one finger remains after
-           * pinch zoom, restart the pan
-           * reference point.
+           * One finger remains after pinch.
+           *
+           * Restart the pan reference so the map does not
+           * jump when the remaining finger moves.
            */
-
           if (e.touches.length === 1) {
             const touch = e.touches[0];
 
             touchStartX = touch.clientX;
-
             touchStartY = touch.clientY;
 
             touchStartCenterLat = centerLat;
-
             touchStartCenterLon = centerLon;
-          }
 
-          if (e.touches.length < 2) {
             pinchStartDistance = 0;
+            pinchStartZoom = zoom;
+            pinchLastZoom = zoom;
+          } else if (e.touches.length === 0) {
+
+          /*
+           * No fingers remain.
+           */
+            pinchStartDistance = 0;
+            pinchStartZoom = zoom;
+            pinchLastZoom = zoom;
+          } else if (e.touches.length === 2) {
+
+          /*
+           * Still two fingers.
+           *
+           * Restart pinch reference from the current state.
+           */
+            pinchStartDistance = getTouchDistance(e.touches[0], e.touches[1]);
+
+            pinchStartZoom = zoom;
+            pinchLastZoom = zoom;
           }
         },
         {
@@ -1202,6 +1377,8 @@
         "touchcancel",
         () => {
           pinchStartDistance = 0;
+          pinchStartZoom = zoom;
+          pinchLastZoom = zoom;
         },
         {
           passive: false,
