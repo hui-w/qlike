@@ -199,7 +199,7 @@
 
       .swatch {
         width: 24px;
-        height: 4px;
+        height: 8px;
         display: inline-block;
         flex-shrink: 0;
       }
@@ -950,7 +950,7 @@
            * of export size.
            */
 
-          targetCtx.lineWidth = mapType === "street" ? 3 : 4;
+          targetCtx.lineWidth = mapType === "street" ? 5 : 6;
 
           targetCtx.lineJoin = "round";
 
@@ -1163,10 +1163,9 @@
             pinchStartZoom = zoom;
             pinchLastZoom = zoom;
           } else if (e.touches.length === 2) {
-
-          /*
-           * Two fingers start.
-           */
+            /*
+             * Two fingers start.
+             */
             pinchStartDistance = getTouchDistance(e.touches[0], e.touches[1]);
 
             pinchStartZoom = zoom;
@@ -1348,20 +1347,18 @@
             pinchStartZoom = zoom;
             pinchLastZoom = zoom;
           } else if (e.touches.length === 0) {
-
-          /*
-           * No fingers remain.
-           */
+            /*
+             * No fingers remain.
+             */
             pinchStartDistance = 0;
             pinchStartZoom = zoom;
             pinchLastZoom = zoom;
           } else if (e.touches.length === 2) {
-
-          /*
-           * Still two fingers.
-           *
-           * Restart pinch reference from the current state.
-           */
+            /*
+             * Still two fingers.
+             *
+             * Restart pinch reference from the current state.
+             */
             pinchStartDistance = getTouchDistance(e.touches[0], e.touches[1]);
 
             pinchStartZoom = zoom;
