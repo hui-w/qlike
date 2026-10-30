@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AMap GPS Footprint</title>
+    <style>
+      html,
+      body,
+      #app,
+      #map {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        overflow: hidden;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      }
+
+      #app,
+      #map {
+        position: relative;
+      }
+
+      #infoPanel {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 10;
+        max-width: 320px;
+        max-height: calc(100% - 24px);
+        overflow-y: auto;
+        padding: 10px 12px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 1px 5px rgba(0, 0, 0, 0.25);
+        font-size: 12px;
+      }
+
+      .legendRow {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin: 5px 0;
+      }
+
+      .swatch {
+        width: 24px;
+        height: 6px;
+        flex-shrink: 0;
+        border-radius: 4px;
+      }
+
+      .routeToggle {
+        padding: 2px 4px;
+        border: 0;
+        border-radius: 3px;
+        background: transparent;
+        color: #222;
+        cursor: pointer;
+        font: inherit;
+        text-align: left;
+      }
+
+      .routeToggle:hover {
+        background: #eee;
+      }
+
+      .routeToggle.hidden {
+        color: #999;
+        text-decoration: line-through;
+      }
+
+      #controlPanel {
+        position: fixed;
+        z-index: 1000;
+        top: 50%;
+        left: 50%;
+        display: none;
+        box-sizing: border-box;
+        width: min(680px, calc(100vw - 40px));
+        padding: 18px;
+        transform: translate(-50%, -50%);
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.97);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+      }
+
+      #controlPanel.visible {
+        display: block;
+      }
+
+      .controlTitle {
+        margin-bottom: 14px;
+        font-size: 18px;
+        font-weight: 600;
+      }
+
+      .controlRow {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+      }
+
+      input,
+      button {
+        padding: 7px 12px;
+        border: 1px solid #bbb;
+        border-radius: 6px;
+        background: #fff;
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: #f2f2f2;
+      }
+
+      #fileInput {
+        flex: 1;
+        min-width: 200px;
+      }
+
+      #status,
+      #error,
+      .hint {
+        margin-top: 10px;
+        font-size: 13px;
+      }
+
+      #status,
+      .hint {
+        color: #666;
+      }
+
+      #error {
+        color: #b00020;
+      }
+
+      .hint {
+        font-size: 12px;
+      }
+
+      #dropOverlay {
+        position: absolute;
+        z-index: 20;
+        inset: 20px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        border: 3px dashed #377eb8;
+        background: rgba(255, 255, 255, 0.85);
+        color: #377eb8;
+        font-size: 24px;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="map"></div>
+      <div id="dropOverlay">Drop CSV files here</div>
+      <div id="infoPanel">
+        <div id="legend">Load CSV files to display routes.</div>
+      </div>
+      <div id="controlPanel">
+        <div class="controlTitle">AMap GPS Footprint</div>
+        <div class="controlRow">
+          <input id="fileInput" type="file" accept=".csv,text/csv" multiple />
+          <button id="clearBtn">Clear</button>
+          <button id="fitBtn">Fit all routes</button>
+          <button id="satelliteBtn" aria-pressed="false">Satellite</button>
+        </div>
+        <div id="status">Select or drop one or more CSV files.</div>
+        <div id="error"></div>
+        <div class="hint">
+          Double-click outside this dialog to open or close it.
+        </div>
+      </div>
+    </div>
+    <script src="./amap-config.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
